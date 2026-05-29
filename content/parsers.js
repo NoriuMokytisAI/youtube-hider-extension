@@ -129,6 +129,11 @@ function getVideoContainerSelectors() {
 }
 
 function findAndHideContainer(element, selectors, reason) {
+  const match = getMatchingVideoContainer(element, selectors);
+  if (match) applyFilter(match, reason);
+}
+
+function getMatchingVideoContainer(element, selectors) {
   let item = element;
   let match = null;
   while (item) {
@@ -137,7 +142,7 @@ function findAndHideContainer(element, selectors, reason) {
     }
     item = item.parentElement;
   }
-  if (match) applyFilter(match, reason);
+  return match;
 }
 
 function resolveViewsFromSpans(spans) {

@@ -96,6 +96,8 @@ async function startHiding(pathname) {
     relevantPrefs: {
       hideChannelEnabled: prefs.hideChannelEnabled,
       viewsHideChannelEnabled: prefs.viewsHideChannelEnabled,
+      viewsHideThreshold: prefs.viewsHideThreshold,
+      viewsHideMaxThreshold: prefs.viewsHideMaxThreshold,
       hideShortsEnabled: prefs.hideShortsEnabled,
       hideShortsSearchEnabled: prefs.hideShortsSearchEnabled,
       dateFilterNewerThreshold: prefs.dateFilterNewerThreshold,
@@ -188,8 +190,27 @@ const debouncedHiding = debounce(() => {
   }
 }, TIMING.DEBOUNCE_MUTATIONS);
 
+function isExtensionMutation(mutation) {
+  if (mutation.type !== 'childList') return false;
+
+  const nodes = [...mutation.addedNodes, ...mutation.removedNodes];
+  if (!nodes.length) return false;
+
+  return nodes.every(node => {
+    if (node.nodeType !== 1) {
+      return Boolean(node.parentElement?.closest?.('.yt-hider-badge'));
+    }
+    return Boolean(
+      node.classList?.contains('yt-hider-badge') ||
+        node.closest?.('.yt-hider-badge'),
+    );
+  });
+}
+
 function onMutations(mutations) {
   detectInfiniteLoaderLoop(mutations);
+
+  if (mutations.every(isExtensionMutation)) return;
 
   debouncedHiding();
 }
@@ -203,7 +224,7 @@ async function init() {
   await startHiding(currentPath);
 
   const observer = new MutationObserver(onMutations);
-  observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+  observer.observe(document.body, { childList: true, subtree: true });
 
   logger.log('MutationObserver started');
 

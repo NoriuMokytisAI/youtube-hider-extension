@@ -205,7 +205,8 @@
 }
 
 /* Red border on sliders when overlap detected */
-.date-sub-filter.date-overlap {
+.date-sub-filter.date-overlap,
+.views-sub-filter.date-overlap {
     border: 1px solid rgba(239, 68, 68, 0.5);
 }
 

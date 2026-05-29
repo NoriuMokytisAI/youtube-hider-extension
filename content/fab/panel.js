@@ -1,9 +1,14 @@
 const miniViewsSteps = [
   0, 100, 500, 1000, 2500, 5000, 7500, 10000, 15000, 25000, 50000, 75000,
-  100000, 150000, 250000, 500000, 1000000, 10000000,
+  100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000,
+  1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 7000000, 8000000,
+  9000000, 10000000,
 ];
 
-const miniDateSteps = [0, 1, 3, 7, 14, 30, 60, 90, 180, 365, 730, 1825, 3650];
+const miniDateYearSteps = Array.from({ length: 20 }, (_, i) => (i + 1) * 365);
+const miniDateYearLabels = Array.from({ length: 20 }, (_, i) => `${i + 1} yr`);
+
+const miniDateSteps = [0, 1, 3, 7, 14, 30, 60, 90, 180, ...miniDateYearSteps];
 const miniDateLabels = [
   'Off',
   '1d',
@@ -14,10 +19,7 @@ const miniDateLabels = [
   '2 mo',
   '3 mo',
   '6 mo',
-  '1 yr',
-  '2 yr',
-  '5 yr',
-  '10 yr',
+  ...miniDateYearLabels,
 ];
 
 const miniDateNewerSteps = [
@@ -33,10 +35,7 @@ const miniDateNewerSteps = [
   60,
   90,
   180,
-  365,
-  730,
-  1825,
-  3650,
+  ...miniDateYearSteps,
 ];
 const miniDateNewerLabels = [
   'Off',
@@ -51,10 +50,7 @@ const miniDateNewerLabels = [
   '2 mo',
   '3 mo',
   '6 mo',
-  '1 yr',
-  '2 yr',
-  '5 yr',
-  '10 yr',
+  ...miniDateYearLabels,
 ];
 
 function findClosestMiniDateNewerIndex(value) {
@@ -114,6 +110,8 @@ function syncPanelToPrefs(shadow) {
   const thresholdValue = shadow.querySelector('#yh-p-threshold-val');
   const viewsSlider = shadow.querySelector('#yh-p-views');
   const viewsValue = shadow.querySelector('#yh-p-views-val');
+  const viewsMaxSlider = shadow.querySelector('#yh-p-views-max');
+  const viewsMaxValue = shadow.querySelector('#yh-p-views-max-val');
 
   const hideMixesToggle = shadow.querySelector('#yh-p-hide-mixes');
   const hidePlaylistsToggle = shadow.querySelector('#yh-p-hide-playlists');
@@ -142,6 +140,17 @@ function syncPanelToPrefs(shadow) {
     updateMiniSliderBg(viewsSlider);
     updateMiniSliderOffState(viewsSlider, idx === 0);
   }
+  if (viewsMaxSlider) {
+    const idx = findClosestMiniViewsIndex(prefs.viewsHideMaxThreshold);
+    viewsMaxSlider.value = idx;
+    if (viewsMaxValue) {
+      viewsMaxValue.textContent =
+        idx === 0 ? 'Off' : formatMiniViews(miniViewsSteps[idx]);
+    }
+    updateMiniSliderBg(viewsMaxSlider);
+    updateMiniSliderOffState(viewsMaxSlider, idx === 0);
+  }
+  checkMiniViewsOverlap(shadow);
 
   // Date filter
   const dateNewerSlider = shadow.querySelector('#yh-p-date-newer');
@@ -208,12 +217,34 @@ function checkMiniDateOverlap(shadow) {
   });
 }
 
+function checkMiniViewsOverlap(shadow) {
+  const viewsSlider = shadow.querySelector('#yh-p-views');
+  const viewsMaxSlider = shadow.querySelector('#yh-p-views-max');
+  const warning = shadow.querySelector('#yh-p-views-overlap-warning');
+
+  if (!viewsSlider || !viewsMaxSlider) return;
+
+  const minIdx = parseInt(viewsSlider.value, 10);
+  const maxIdx = parseInt(viewsMaxSlider.value, 10);
+  const minThreshold = miniViewsSteps[minIdx];
+  const maxThreshold = miniViewsSteps[maxIdx];
+  const isOverlap = minIdx > 0 && maxIdx > 0 && minThreshold >= maxThreshold;
+
+  if (warning) warning.style.visibility = isOverlap ? 'visible' : 'hidden';
+
+  shadow.querySelectorAll('.yh-views-slider-row').forEach(row => {
+    row.classList.toggle('yh-date-overlap', isOverlap);
+  });
+}
+
 function bindPanelEvents(shadow) {
   const hideShortsToggle = shadow.querySelector('#yh-p-hide-shorts');
   const thresholdSlider = shadow.querySelector('#yh-p-threshold');
   const thresholdValue = shadow.querySelector('#yh-p-threshold-val');
   const viewsSlider = shadow.querySelector('#yh-p-views');
   const viewsValue = shadow.querySelector('#yh-p-views-val');
+  const viewsMaxSlider = shadow.querySelector('#yh-p-views-max');
+  const viewsMaxValue = shadow.querySelector('#yh-p-views-max-val');
   const openFullBtn = shadow.querySelector('#yh-p-open-full');
   const hideButtonLink = shadow.querySelector('#yh-p-hide-btn');
   const closeBtn = shadow.querySelector('#yh-p-close');
@@ -308,10 +339,39 @@ function bindPanelEvents(shadow) {
           idx === 0 ? 'Off' : formatMiniViews(miniViewsSteps[idx]);
       updateMiniSliderBg(viewsSlider);
       updateMiniSliderOffState(viewsSlider, idx === 0);
+      checkMiniViewsOverlap(shadow);
     });
     viewsSlider.addEventListener('change', () => {
       const idx = parseInt(viewsSlider.value, 10);
       safeStorageSet('sync', { viewsHideThreshold: miniViewsSteps[idx] });
+      if (idx > 0) {
+        autoEnablePerPageMini(
+          [
+            'viewsHideHomeEnabled',
+            'viewsHideChannelEnabled',
+            'viewsHideSearchEnabled',
+            'viewsHideSubsEnabled',
+            'viewsHideCorrEnabled',
+          ],
+          true,
+        );
+      }
+    });
+  }
+
+  if (viewsMaxSlider) {
+    viewsMaxSlider.addEventListener('input', () => {
+      const idx = parseInt(viewsMaxSlider.value, 10);
+      if (viewsMaxValue)
+        viewsMaxValue.textContent =
+          idx === 0 ? 'Off' : formatMiniViews(miniViewsSteps[idx]);
+      updateMiniSliderBg(viewsMaxSlider);
+      updateMiniSliderOffState(viewsMaxSlider, idx === 0);
+      checkMiniViewsOverlap(shadow);
+    });
+    viewsMaxSlider.addEventListener('change', () => {
+      const idx = parseInt(viewsMaxSlider.value, 10);
+      safeStorageSet('sync', { viewsHideMaxThreshold: miniViewsSteps[idx] });
       if (idx > 0) {
         autoEnablePerPageMini(
           [
@@ -420,7 +480,7 @@ function bindPanelEvents(shadow) {
 }
 
 function getMiniPanelHTML() {
-  const infoSvg = `<svg class="yh-info-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="8" y="11.5" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">?</text></svg>`;
+  const infoSvg = `<svg class="yh-info-icon" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="8" y="11.5" text-anchor="middle" font-size="9" font-weight="700" fill="currentColor">?</text></svg>`;
   return `
     <div class="yh-panel-header">
       <div class="yh-panel-branding">
@@ -493,16 +553,31 @@ function getMiniPanelHTML() {
       <div class="yh-panel-group">
         <div class="yh-panel-row">
           <div class="yh-panel-label-wrap">
-            <span class="yh-panel-label">Minimum Views Filter</span>
-            <span class="yh-info-wrap">${infoSvg}<span class="yh-tooltip">Hides videos with fewer views than the set minimum</span></span>
+            <span class="yh-panel-label">Views Filter</span>
+            <span class="yh-info-wrap">${infoSvg}<span class="yh-tooltip">Hides videos below or above selected view counts</span></span>
           </div>
         </div>
-        <div class="yh-panel-slider-row">
+        <div class="yh-panel-slider-row yh-views-slider-row">
           <span class="yh-panel-sublabel">Minimum views</span>
           <div class="yh-panel-slider-wrap">
-            <input type="range" id="yh-p-views" min="0" max="17" step="1" value="3" class="yh-panel-slider" />
+            <input type="range" id="yh-p-views" min="0" max="${miniViewsSteps.length - 1}" step="1" value="3" class="yh-panel-slider" />
             <span class="yh-panel-slider-val" id="yh-p-views-val">1K</span>
           </div>
+        </div>
+        <div class="yh-panel-slider-row yh-views-slider-row">
+          <span class="yh-panel-sublabel">Maximum views</span>
+          <div class="yh-panel-slider-wrap">
+            <input type="range" id="yh-p-views-max" min="0" max="${miniViewsSteps.length - 1}" step="1" value="0" class="yh-panel-slider" />
+            <span class="yh-panel-slider-val" id="yh-p-views-max-val">Off</span>
+          </div>
+        </div>
+        <div class="yh-date-overlap-warning" id="yh-p-views-overlap-warning" style="visibility: hidden;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Filter not active: ranges overlap</span>
         </div>
       </div>
       <div class="yh-panel-group">
@@ -515,14 +590,14 @@ function getMiniPanelHTML() {
         <div class="yh-panel-slider-row yh-date-slider-row">
           <span class="yh-panel-sublabel">Hide newer than</span>
           <div class="yh-panel-slider-wrap">
-            <input type="range" id="yh-p-date-newer" min="0" max="15" step="1" value="0" class="yh-panel-slider" />
+            <input type="range" id="yh-p-date-newer" min="0" max="${miniDateNewerSteps.length - 1}" step="1" value="0" class="yh-panel-slider" />
             <span class="yh-panel-slider-val" id="yh-p-date-newer-val">Off</span>
           </div>
         </div>
         <div class="yh-panel-slider-row yh-date-slider-row">
           <span class="yh-panel-sublabel">Hide older than</span>
           <div class="yh-panel-slider-wrap">
-            <input type="range" id="yh-p-date-older" min="0" max="12" step="1" value="0" class="yh-panel-slider" />
+            <input type="range" id="yh-p-date-older" min="0" max="${miniDateSteps.length - 1}" step="1" value="0" class="yh-panel-slider" />
             <span class="yh-panel-slider-val" id="yh-p-date-older-val">Off</span>
           </div>
         </div>
@@ -550,8 +625,8 @@ function getMiniPanelHTML() {
       </div>
     </div>
     <div class="yh-panel-footer">
-      <a href="#" class="yh-panel-link" id="yh-p-open-full">Open full settings <svg class="yh-external-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M6 3h7v7m0-7L6 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      <a href="#" class="yh-panel-hide-btn" id="yh-p-hide-btn"><svg class="yh-hide-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Hide this button</a>
+      <a href="#" class="yh-panel-link" id="yh-p-open-full">Open full settings <svg class="yh-external-icon" viewBox="0 0 16 16"><path d="M6 3h7v7m0-7L6 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a href="#" class="yh-panel-hide-btn" id="yh-p-hide-btn"><svg class="yh-hide-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Hide this button</a>
     </div>
   `;
 }

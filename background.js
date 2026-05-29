@@ -14,8 +14,6 @@ const logger = {
   },
 };
 
-const UNINSTALL_SURVEY_URL = 'https://forms.gle/RAcQp2acFGkjfuS86';
-
 const flagKeys = [
   'hideHomeEnabled',
   'hideSearchEnabled',
@@ -54,6 +52,8 @@ const defaultSettings = {
   hideSubsEnabled: true,
   hideCorrEnabled: true,
   viewsHideThreshold: 1000,
+  viewsHideMaxThreshold: 0,
+  channelExclusionList: '',
   viewsHideHomeEnabled: true,
   viewsHideChannelEnabled: true,
   viewsHideSearchEnabled: true,
@@ -191,6 +191,7 @@ function refreshBadge() {
       extensionEnabled: true,
       hideThreshold: 20,
       viewsHideThreshold: 1000,
+      viewsHideMaxThreshold: 0,
     },
     prefs => {
       if (chrome.runtime.lastError) {
@@ -209,8 +210,12 @@ function getBadgeText(flags = {}) {
   const hideWatchedActive =
     (flags.hideThreshold || 0) > 0 &&
     ['hideHomeEnabled', 'hideSearchEnabled', 'hideSubsEnabled', 'hideChannelEnabled', 'hideCorrEnabled'].some(k => flags[k]);
+  const viewsMin = flags.viewsHideThreshold || 0;
+  const viewsMax = flags.viewsHideMaxThreshold || 0;
+  const viewsRangeValid = !(viewsMin > 0 && viewsMax > 0 && viewsMin >= viewsMax);
   const viewsActive =
-    (flags.viewsHideThreshold || 0) > 0 &&
+    viewsRangeValid &&
+    (viewsMin > 0 || viewsMax > 0) &&
     ['viewsHideHomeEnabled', 'viewsHideSearchEnabled', 'viewsHideSubsEnabled', 'viewsHideChannelEnabled', 'viewsHideCorrEnabled'].some(k => flags[k]);
   const shortsActive = flags.hideShortsEnabled || flags.hideShortsSearchEnabled;
   const mixesPlaylistsActive = flags.hideMixesEnabled || flags.hidePlaylistsEnabled || flags.hideLivesEnabled;
@@ -245,6 +250,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     'extensionEnabled',
     'hideThreshold',
     'viewsHideThreshold',
+    'viewsHideMaxThreshold',
   ];
   if (Object.keys(changes).some(key => allBadgeKeys.includes(key))) {
     refreshBadge();
@@ -254,21 +260,7 @@ chrome.runtime.onStartup.addListener(() => {
   refreshBadge();
 });
 chrome.runtime.onInstalled.addListener(details => {
-  if (details.reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    chrome.runtime.setUninstallURL(UNINSTALL_SURVEY_URL);
-    logger.log('Uninstall URL set for new installation');
-
-    chrome.tabs.create({
-      url: 'https://youtubehider.com/welcome.html',
-      active: true,
-    });
-    logger.log('Welcome page opened');
-  }
-
   if (details.reason === chrome.runtime.OnInstalledReason.UPDATE) {
-    chrome.runtime.setUninstallURL(UNINSTALL_SURVEY_URL);
-    logger.log('Uninstall URL updated');
-
     const manifest = chrome.runtime.getManifest();
     const prev = (details.previousVersion || '').split('.');
     const curr = manifest.version.split('.');

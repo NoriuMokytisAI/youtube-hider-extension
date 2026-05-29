@@ -285,7 +285,8 @@ function getFloatingButtonCSS() {
       border-radius: 6px;
       padding: 4px 6px;
     }
-    .yh-date-slider-row.yh-date-overlap .yh-panel-slider-wrap {
+    .yh-date-slider-row.yh-date-overlap .yh-panel-slider-wrap,
+    .yh-views-slider-row.yh-date-overlap .yh-panel-slider-wrap {
       border-color: rgba(239, 68, 68, 0.5);
     }
     .yh-date-overlap-warning {

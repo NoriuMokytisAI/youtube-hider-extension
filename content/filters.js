@@ -39,6 +39,12 @@ function injectDimStyles() {
   document.head.appendChild(style);
 }
 
+let excludedChannelCacheRaw = null;
+let excludedChannelCacheSet = new Set();
+const excludedChannelMatchCache = new WeakMap();
+let currentChannelCachePath = null;
+let currentChannelCacheCandidates = [];
+
 function createDimBadge(reason) {
   const badge = document.createElement('div');
   badge.className = 'yt-hider-badge';
@@ -189,6 +195,8 @@ function getMetadataSpansFromContainer(metadataContainer) {
 }
 
 function hideDateFilter() {
+  if (isCurrentPageExcludedChannel()) return;
+
   const selectors = getVideoContainerSelectors();
 
   // Classic format: #metadata-line
@@ -203,6 +211,7 @@ function hideDateFilter() {
     if (!result) return;
     const dateReason = getDateFilterReason(result.ageDays);
     if (!dateReason) return;
+    if (isChannelExcludedForFilterTarget(result.span, selectors)) return;
 
     findAndHideContainer(result.span, selectors, dateReason);
   });
@@ -227,6 +236,7 @@ function hideDateFilter() {
         'ytm-video-with-context-renderer, ytm-rich-item-renderer, ytm-compact-video-renderer',
       );
       if (container) {
+        if (isExcludedChannelContainer(container)) return;
         applyFilter(container, dateReason);
         const wrapper = container.closest('ytm-rich-item-renderer');
         if (wrapper) applyFilter(wrapper, dateReason);
@@ -244,13 +254,15 @@ function hideDateFilter() {
       if (!result) return;
       const dateReason = getDateFilterReason(result.ageDays);
       if (!dateReason) return;
+      if (isChannelExcludedForFilterTarget(result.span, selectors)) return;
 
       findAndHideContainer(result.span, selectors, dateReason);
     });
 }
 
 function hideUnderVisuals() {
-  const { viewsHideThreshold } = prefs;
+  if (isCurrentPageExcludedChannel()) return;
+
   const selectors = getVideoContainerSelectors();
 
   document.querySelectorAll('#metadata-line').forEach(metaLine => {
@@ -261,9 +273,12 @@ function hideUnderVisuals() {
     if (!spans.length) return;
 
     const result = resolveViewsFromSpans(spans);
-    if (!result || result.views >= viewsHideThreshold) return;
+    if (!result) return;
+    const viewReason = getViewFilterReason(result.views);
+    if (!viewReason) return;
+    if (isChannelExcludedForFilterTarget(result.span, selectors)) return;
 
-    findAndHideContainer(result.span, selectors, 'Views too low');
+    findAndHideContainer(result.span, selectors, viewReason);
   });
 
   document
@@ -272,16 +287,18 @@ function hideUnderVisuals() {
       const text = (span.textContent || '').trim();
       const result = extractViewCount(text);
       if (!result || typeof result !== 'object') return;
-      if (result.views >= viewsHideThreshold) return;
+      const viewReason = getViewFilterReason(result.views);
+      if (!viewReason) return;
 
       const container = span.closest(
         'ytm-video-with-context-renderer, ytm-rich-item-renderer, ytm-compact-video-renderer',
       );
 
       if (container) {
-        applyFilter(container, 'Views too low');
+        if (isExcludedChannelContainer(container)) return;
+        applyFilter(container, viewReason);
         const wrapper = container.closest('ytm-rich-item-renderer');
-        if (wrapper) applyFilter(wrapper, 'Views too low');
+        if (wrapper) applyFilter(wrapper, viewReason);
       }
     });
 
@@ -289,7 +306,6 @@ function hideUnderVisuals() {
 }
 
 function hideNewFormatVideos() {
-  const { viewsHideThreshold } = prefs;
   const selectors = getVideoContainerSelectors();
 
   document
@@ -300,18 +316,230 @@ function hideNewFormatVideos() {
 
       const result = resolveViewsFromSpans(allSpans);
 
-      try {
-        logger.log('views-check', {
-          views: result ? result.views : NaN,
-          threshold: viewsHideThreshold,
-          pathname: window.location.pathname,
-        });
-      } catch (e) {}
+      if (!result) return;
+      const viewReason = getViewFilterReason(result.views);
+      if (!viewReason) return;
+      if (isChannelExcludedForFilterTarget(result.span, selectors)) return;
 
-      if (!result || result.views >= viewsHideThreshold) return;
-
-      findAndHideContainer(result.span, selectors, 'Views too low');
+      findAndHideContainer(result.span, selectors, viewReason);
     });
+}
+
+function normalizeChannelExclusionValue(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[?#].*$/, '')
+    .replace(/^https?:\/\/(www\.)?(m\.)?youtube\.com\//i, '')
+    .replace(/^\/+/, '')
+    .replace(/^channel\//i, '')
+    .replace(/^c\//i, '')
+    .replace(/^user\//i, '')
+    .replace(/^@/, '')
+    .replace(/\/.*$/, '')
+    .replace(/\/+$/, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function compactChannelExclusionValue(value) {
+  return normalizeChannelExclusionValue(value).replace(/[^a-z0-9]/g, '');
+}
+
+function getExcludedChannelSet() {
+  const raw = String(prefs.channelExclusionList || '');
+  if (raw === excludedChannelCacheRaw) return excludedChannelCacheSet;
+
+  const excluded = new Set();
+
+  raw
+    .split(/[\n,]+/)
+    .map(normalizeChannelExclusionValue)
+    .filter(Boolean)
+    .forEach(value => {
+      excluded.add(value);
+      const compact = compactChannelExclusionValue(value);
+      if (compact) excluded.add(compact);
+    });
+
+  excludedChannelCacheRaw = raw;
+  excludedChannelCacheSet = excluded;
+  return excludedChannelCacheSet;
+}
+
+function getCurrentChannelCandidates() {
+  const pathname = window.location.pathname || '';
+  if (pathname === currentChannelCachePath) return currentChannelCacheCandidates;
+
+  currentChannelCachePath = pathname;
+  currentChannelCacheCandidates = [];
+
+  if (!pathname.startsWith('/@')) return currentChannelCacheCandidates;
+
+  const normalized = normalizeChannelExclusionValue(pathname);
+  if (!normalized) return currentChannelCacheCandidates;
+
+  currentChannelCacheCandidates.push(normalized);
+  const compact = compactChannelExclusionValue(normalized);
+  if (compact && compact !== normalized) currentChannelCacheCandidates.push(compact);
+
+  return currentChannelCacheCandidates;
+}
+
+function isCurrentChannelExcluded(excluded) {
+  return getCurrentChannelCandidates().some(candidate => excluded.has(candidate));
+}
+
+function isCurrentPageExcludedChannel() {
+  const excluded = getExcludedChannelSet();
+  return excluded.size > 0 && isCurrentChannelExcluded(excluded);
+}
+
+function collectChannelCandidates(container) {
+  if (!container) return [];
+
+  const candidates = [];
+  const seen = new Set();
+  const add = value => {
+    const normalized = normalizeChannelExclusionValue(value);
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    candidates.push(normalized);
+    const compact = compactChannelExclusionValue(normalized);
+    if (compact && compact !== normalized && !seen.has(compact)) {
+      seen.add(compact);
+      candidates.push(compact);
+    }
+  };
+  const addFromAriaLabel = value => {
+    const label = String(value || '').trim();
+    if (!label) return;
+    add(label);
+
+    const byMatch = label.match(/\sby\s(.+?)(?:\s(?:\d|streamed|premiered|views?|watching|ago)\b|$)/i);
+    if (byMatch) add(byMatch[1]);
+
+    const channelMatch = label.match(/(?:go to|visit|open)\s+channel\s+(.+)$/i);
+    if (channelMatch) add(channelMatch[1]);
+  };
+
+  const roots = getChannelCandidateSearchRoots(container);
+
+  roots.forEach(root => {
+    root
+      .querySelectorAll(
+        [
+          'ytd-channel-name a',
+          '#channel-name a',
+          '#byline a',
+          '#owner-text a',
+          'a[href*="/@"]',
+          'a[href*="/channel/"]',
+          'a[href*="/c/"]',
+          'a[href*="/user/"]',
+          'yt-formatted-string.ytd-channel-name',
+          '.yt-content-metadata-view-model-wiz__metadata-row a',
+          '.yt-content-metadata-view-model__metadata-row a',
+          'yt-lockup-metadata-view-model a[href*="/@"]',
+          'yt-lockup-metadata-view-model a[href*="/channel/"]',
+        ].join(', '),
+      )
+      .forEach(el => {
+        add(el.textContent);
+        add(el.getAttribute('title'));
+        addFromAriaLabel(el.getAttribute('aria-label'));
+        add(el.getAttribute('href'));
+      });
+
+    root.querySelectorAll('[aria-label*="channel" i]').forEach(el => {
+      const label = el.getAttribute('aria-label') || '';
+      addFromAriaLabel(label);
+      add(label.replace(/^go to channel\s+/i, ''));
+    });
+
+    root
+      .querySelectorAll(
+        [
+          'a#video-title',
+          '#video-title-link',
+          'h3 a[href*="/watch"]',
+          'a[href*="/watch"]',
+        ].join(', '),
+      )
+      .forEach(el => {
+        addFromAriaLabel(el.getAttribute('aria-label'));
+      });
+  });
+
+  return candidates;
+}
+
+function getChannelCandidateSearchRoots(container) {
+  const roots = [];
+  const addRoot = root => {
+    if (root && root.nodeType === 1 && !roots.includes(root)) roots.push(root);
+  };
+
+  addRoot(container);
+  [
+    'ytd-rich-item-renderer',
+    'ytd-video-renderer',
+    'ytd-compact-video-renderer',
+    'yt-lockup-view-model',
+    'yt-lockup-metadata-view-model',
+    'ytm-rich-item-renderer',
+    'ytm-video-with-context-renderer',
+    'ytm-compact-video-renderer',
+  ].forEach(selector => addRoot(container.closest(selector)));
+
+  return roots;
+}
+
+function isExcludedChannelContainer(container) {
+  if (!container) return false;
+
+  const excluded = getExcludedChannelSet();
+  if (!excluded.size) return false;
+
+  const cacheKey = `${excludedChannelCacheRaw || ''}\n${window.location.pathname || ''}`;
+  const cached = excludedChannelMatchCache.get(container);
+  if (cached && cached.key === cacheKey) return cached.value;
+
+  let value = isCurrentChannelExcluded(excluded);
+  if (!value) {
+    value = collectChannelCandidates(container).some(candidate =>
+      excluded.has(candidate),
+    );
+  }
+
+  excludedChannelMatchCache.set(container, { key: cacheKey, value });
+  return value;
+}
+
+function isChannelExcludedForFilterTarget(element, selectors) {
+  const container = getMatchingVideoContainer(element, selectors);
+  if (!container) return false;
+  return isExcludedChannelContainer(container);
+}
+
+function getViewFilterReason(views) {
+  const { viewsHideThreshold, viewsHideMaxThreshold } = prefs;
+
+  if (
+    viewsHideThreshold > 0 &&
+    viewsHideMaxThreshold > 0 &&
+    viewsHideThreshold >= viewsHideMaxThreshold
+  ) {
+    return null;
+  }
+
+  if (viewsHideThreshold > 0 && views < viewsHideThreshold) {
+    return 'Views too low';
+  }
+  if (viewsHideMaxThreshold > 0 && views > viewsHideMaxThreshold) {
+    return 'Views too high';
+  }
+
+  return null;
 }
 
 function hideShorts() {
@@ -417,12 +645,12 @@ function hideShorts() {
   });
 
   document.querySelectorAll('ytd-rich-section-renderer').forEach(section => {
-    const allChildren = section.querySelectorAll('*');
-    for (const child of allChildren) {
-      if (child.style.display === 'none' || child.dataset.ytHiderDimmed) {
-        forceHide(section);
-        break;
-      }
+    if (
+      section.querySelector(
+        '[data-yt-hider-hidden], [data-yt-hider-dimmed]',
+      )
+    ) {
+      forceHide(section);
     }
   });
 
@@ -465,12 +693,23 @@ function shouldHideWatched(pathname) {
 
 function shouldHideViews(pathname) {
   const {
+    viewsHideThreshold,
+    viewsHideMaxThreshold,
     viewsHideHomeEnabled,
     viewsHideChannelEnabled,
     viewsHideSearchEnabled,
     viewsHideSubsEnabled,
     viewsHideCorrEnabled,
   } = prefs;
+
+  if (viewsHideThreshold === 0 && viewsHideMaxThreshold === 0) return false;
+  if (
+    viewsHideThreshold > 0 &&
+    viewsHideMaxThreshold > 0 &&
+    viewsHideThreshold >= viewsHideMaxThreshold
+  ) {
+    return false;
+  }
 
   return (
     (pathname === '/' && viewsHideHomeEnabled) ||

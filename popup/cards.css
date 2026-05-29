@@ -103,6 +103,33 @@
     border-top: 1px solid var(--border-color);
 }
 
+.extra-setting-row-stack {
+    align-items: stretch;
+    flex-direction: column;
+}
+
+.channel-exclusion-list {
+    width: 100%;
+    min-height: 82px;
+    resize: vertical;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 8px 10px;
+    font: inherit;
+    line-height: 1.4;
+}
+
+.channel-exclusion-list:focus {
+    outline: none;
+    border-color: rgba(138, 180, 248, 0.75);
+}
+
+.channel-exclusion-list::placeholder {
+    color: var(--text-tertiary);
+}
+
 .setting-card-compact > .extra-setting-row:first-child {
     border-top: none;
     padding-top: 0;
