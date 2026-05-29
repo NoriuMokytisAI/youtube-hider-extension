@@ -1,174 +1,141 @@
-<p align="center">
-  <img src="assets/icons/youtube-hider-logo.png" alt="Youtube Hider Logo" width="80" />
-</p>
+# YouTube Hider
 
-<h1 align="center">Youtube Hider</h1>
+A customized Manifest V3 browser extension for filtering YouTube videos locally in Chrome or Microsoft Edge.
 
-<p align="center">
-  <strong>Hide or dim watched videos, Shorts, Mixes, Playlists, Lives and low-view videos from YouTube.</strong>
-</p>
-
-<p align="center">
-  <a href="https://chromewebstore.google.com/detail/ebpikpmmnpjmlcpanakfcgchkdjaanmm"><img src="https://img.shields.io/chrome-web-store/v/ebpikpmmnpjmlcpanakfcgchkdjaanmm?style=flat&logo=googlechrome&logoColor=white&label=Chrome%20Web%20Store" alt="Chrome Web Store Version" /></a>
-  <a href="https://chromewebstore.google.com/detail/ebpikpmmnpjmlcpanakfcgchkdjaanmm"><img src="https://img.shields.io/chrome-web-store/users/ebpikpmmnpjmlcpanakfcgchkdjaanmm?style=flat&logo=googlechrome&logoColor=white&label=Users" alt="Chrome Web Store Users" /></a>
-  <a href="https://chromewebstore.google.com/detail/ebpikpmmnpjmlcpanakfcgchkdjaanmm"><img src="https://img.shields.io/chrome-web-store/rating/ebpikpmmnpjmlcpanakfcgchkdjaanmm?style=flat&logo=googlechrome&logoColor=white&label=Rating" alt="Chrome Web Store Rating" /></a>
-  <img src="https://img.shields.io/badge/manifest-v3-green?style=flat" alt="Manifest V3" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow?style=flat" alt="MIT License" /></a>
-</p>
-
-<p align="center">
-  <a href="https://chromewebstore.google.com/detail/ebpikpmmnpjmlcpanakfcgchkdjaanmm?utm_source=item-share-cb">Chrome Web Store</a> &middot;
-  <a href="https://youtubehider.com/">Website</a> &middot;
-  <a href="https://forms.gle/oAqtSjQHQeEp9TFKA">Request a Feature</a> &middot;
-  <a href="https://forms.gle/oAqtSjQHQeEp9TFKA">Report a Bug</a>
-</p>
-
----
+This fork is based on Matteo Lucerni's YouTube Hider extension and adds more granular upload-date filtering, min/max view filtering, channel exclusions, and offline-only packaging changes.
 
 ## Features
 
-### Hide Watched Videos
+### Watched Videos
 
-Hide videos you've already watched from Home, Channel pages, Subscriptions, Search results and Related videos. Set a custom threshold (0-100%) to define how much you need to have watched before a video is hidden.
-
-### Minimum Views Filter
-
-Hide videos below a certain view count. Choose from a range of thresholds (0 to 10M views) to filter out low-engagement content. Per-page toggles give you full control.
+Hide videos you have already watched from Home, Channel pages, Subscriptions, Search results, and Related videos. The watched threshold is configurable from 0-100%.
 
 ### Upload Date Filter
 
-Hide videos by their upload date with two independent sub-filters: **Hide newer than** and **Hide older than**. Each has its own toggle and slider with logarithmic time steps (1 day to 10 years). Use both together to keep only videos in a specific age range - for example, hide recent AI-generated content and outdated videos at the same time. Supports 10+ YouTube interface languages.
+Hide videos by age with two independent controls:
 
-### Hide Shorts, Mixes, Playlists & Lives
+- **Hide newer than**: hide videos newer than the selected age.
+- **Hide older than**: hide videos older than the selected age.
 
-Selectively remove content types from your YouTube feed with individual toggles:
+The date sliders support short ranges plus yearly steps up to 20 years. The popup warns when the newer/older settings conflict in a way that would hide everything.
 
-- **Shorts** - removes the Shorts shelf, navigation tab and Shorts from search results
-- **Mixes** - removes YouTube Mix playlists from feed, search results and related sidebar
-- **Playlists** - removes playlists from feed, search results and related sidebar
-- **Lives** - removes live streams from your feed and search results
+### Min And Max Views Filter
 
-### Filter Mode
+Filter videos by view count with both lower and upper limits:
 
-Choose how filtered content is treated across all active filters:
+- **Minimum views** hides videos below the selected count.
+- **Maximum views** hides videos above the selected count.
 
-- **Hide** (default) - filtered elements are removed from view entirely
-- **Dim** - filtered elements stay visible under a dark semi-transparent overlay. The overlay displays the Youtube Hider logo and a compact label indicating why the element was filtered ("Already watched", "Views too low", "Video too new", "Video too old", "Mix playlist", "Playlist", "Live stream"). Filtered elements remain fully clickable. Shorts are always hidden regardless of this setting.
+The view sliders include fine-grained lower values, 100K increments through the hundred-thousands, and every million from 1M through 10M. The popup warns when the minimum is greater than or equal to the maximum.
 
-In Hide mode, lockup-based cards are removed at the correct wrapper level to avoid empty placeholders in Home and Subscriptions grids.
+### Channel Exclusions
 
-Filter updates are live in both directions: increasing thresholds hides more content, and lowering thresholds restores matching content immediately without refreshing the page.
+Add channel names, handles, or YouTube channel URLs to the channel exclusion list. Videos from excluded channels skip the upload-date and view-count filters.
 
-The Filter Mode toggle is available in both the popup (Extra Settings card) and the floating mini-panel.
+Examples:
 
-### Master Extension Switch
+```text
+theaisearch
+@theaisearch
+https://www.youtube.com/@theaisearch
+```
 
-Use the **Extension** switch in the popup header to instantly enable or disable the entire extension. When disabled, filtering is paused globally and the badge shows **OFF**.
+Channel exclusions are intended only for date and view limits. Other filters, such as watched videos, Shorts, Mixes, Playlists, and Lives, can still apply.
 
-### Floating Quick-Settings Button
+### Content Type Filters
 
-A draggable floating button on YouTube pages gives you instant access to toggle settings without opening the extension popup. Drag it to any edge of the screen and it snaps to the nearest viewport border, remembering its position. Automatically hidden on video watch pages for a clean viewing experience. On first install, a guided spotlight tutorial walks you through the button and its features - you can restart it anytime from the popup.
+Optionally hide:
 
-### Simple Mode & Advanced Mode
+- Shorts
+- Mixes
+- Playlists
+- Live streams
 
-The popup starts in **Simple Mode** for quick everyday use. When you need page-level control, open **Extra Settings** and use the **Interface Mode** row to switch to **Advanced Mode**, where per-page toggles are available for each filter.
+### Hide Or Dim Mode
 
-### Badge Indicator
+Filtered videos can either be fully hidden or dimmed with an overlay that explains why the video was filtered.
 
-The extension icon shows a badge reflecting the current state:
+### Floating Quick Settings
 
-- _(no badge)_ - Features enabled
-- **OFF** - All disabled
+A draggable floating button on YouTube pages gives quick access to the main filter controls without opening the extension popup. It is hidden on video watch pages.
 
----
+### Offline-Focused Build
 
-## Installation
+The active extension code avoids external service links and extension-initiated network calls. The only host permissions are for YouTube pages, where the content script runs.
 
-### For Users
+## Install In Chrome
 
-Install directly from the **[Chrome Web Store](https://chromewebstore.google.com/detail/ebpikpmmnpjmlcpanakfcgchkdjaanmm?utm_source=item-share-cb)**.
+1. Open `chrome://extensions/`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select this repository folder, or extract a build zip and select the extracted folder.
+5. Pin the extension if you want quick access to the popup.
 
-### For Developers
+## Install In Microsoft Edge
 
-1. Clone the repository
-   ```bash
-   git clone https://github.com/your-username/youtube-hider-extension.git
-   ```
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable **Developer mode** (top-right corner)
-4. Click **Load unpacked** and select the extension's root folder
-5. (Optional) Pin the extension icon to your toolbar
-
-> **Tip:** To filter only this extension's logs in Chrome DevTools console, use:
-> `url:chrome-extension://EXTENSION_ID`
-
----
+1. Open `edge://extensions/`.
+2. Enable **Developer mode**.
+3. Click **Load unpacked**.
+4. Select this repository folder, or extract a build zip and select the extracted folder.
+5. Open YouTube and configure the extension from the toolbar popup.
 
 ## Build
 
-Package the extension for Chrome Web Store upload:
+Package the extension:
 
 ```powershell
 .\build.ps1
 ```
 
-This creates a zip file in `dist/` containing only the files needed by the extension. The script automatically reads `manifest.json` and parses `popup.html` to collect all referenced files.
-
----
+The build script writes a zip file to `dist/`. Files in `dist/` are ignored by git.
 
 ## Project Structure
 
-```
+```text
 youtube-hider-extension
-├── assets/
-│   └── icons/
-│       ├── youtube-hider-logo.png
-│       └── YT Hider icon v6.png
-├── content/
-│   ├── env.js             DEV_MODE flag
-│   ├── utils.js           Shared utilities (debounce, logger, safe storage)
-│   ├── state.js           Preferences, timing constants, storage listener
-│   ├── warning.js         High-filtering warning and infinite-loop detection
-│   ├── fab/
-│   │   ├── styles.js      Floating button Shadow DOM CSS
-│   │   ├── panel.js       Mini-panel data, sync, events, HTML
-│   │   └── core.js        Floating button creation, positioning, drag
-│   ├── tutorial.js        Guided spotlight tutorial
-│   ├── parsers.js         View count and upload date parsers
-│   ├── filters.js         Video hiding and filtering logic
-│   └── init.js            Page detection, observers, bootstrap
-├── popup/
-│   ├── popup.html         Settings popup UI
-│   ├── data.js            Popup constants and utility functions
-│   ├── popup.js           Popup initialization and event handling
-│   ├── base.css           Variables, reset, header, layout, simple/advanced states
-│   ├── cards.css          Setting cards and slider controls
-│   ├── toggles.css        Toggle grid, switches, footer
-│   └── filters.css        Tooltips, date filter, overlap warning
-├── background.js          Service worker (badge, lifecycle, messaging)
-├── build.ps1              Build/packaging script
-├── CHANGELOG.md           Version history
-├── LICENSE                MIT License
-├── manifest.json          Extension manifest (MV3)
-└── README.md
+|-- assets/
+|   `-- icons/
+|-- background.js          Service worker, badge updates, lifecycle
+|-- build.ps1              Packaging script
+|-- content/
+|   |-- env.js             DEV_MODE flag
+|   |-- fab/               Floating button and mini-panel
+|   |-- filters.js         Filtering logic
+|   |-- init.js            Page detection, MutationObserver, bootstrap
+|   |-- parsers.js         View count and upload date parsing
+|   |-- state.js           Preferences and storage listener
+|   |-- tutorial.js        Floating button tutorial
+|   |-- utils.js           Shared utilities
+|   `-- warning.js         High-filtering warning
+|-- manifest.json          Manifest V3 extension definition
+|-- popup/
+|   |-- popup.html         Popup UI
+|   |-- popup.js           Popup behavior and storage
+|   |-- data.js            Slider steps and labels
+|   `-- *.css              Popup styles
+`-- README.md
 ```
-
----
 
 ## How It Works
 
-1. **Content scripts** (11 files in `content/`) load on YouTube pages in the order defined by `manifest.json`. They share a global scope via Chrome's isolated world.
-2. A **MutationObserver** watches for DOM changes and triggers hiding/filtering logic based on your preferences.
-3. Settings are stored in `chrome.storage.sync` (synced across devices). The floating button position is stored in `chrome.storage.local` (device-specific).
-4. The **floating button** (`content/fab/`) uses a closed Shadow DOM to encapsulate its styles from the host page.
-5. The **background service worker** manages badge updates, extension lifecycle events and messaging between popup/content scripts.
+1. Content scripts load on YouTube pages listed in `manifest.json`.
+2. User settings are stored in `chrome.storage.sync`.
+3. The content script scans YouTube video metadata in the current page.
+4. Matching videos are hidden or dimmed according to the active filters.
+5. A MutationObserver reruns filtering as YouTube dynamically loads more content.
+6. Channel exclusions are cached so excluded channel pages and repeated cards do less work.
 
----
+## Current Custom Changes
 
-## Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests.
+- Removed active extension links to external web pages.
+- Forced production/offline mode with `DEV_MODE = false`.
+- Added upload-date steps up to 20 years.
+- Added maximum view filtering.
+- Added more granular 100K and million-step view thresholds.
+- Added conflict warnings for impossible view/date filter combinations.
+- Added channel exclusions for date and view filters.
+- Optimized channel exclusion matching to reduce slow DOM scans.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project keeps the original MIT License.
